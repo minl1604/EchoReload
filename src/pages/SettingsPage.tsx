@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Link } from 'react-router-dom';
@@ -62,7 +62,7 @@ export function SettingsPage() {
     queryFn: fetchAuditLogs,
   });
   const form = useForm<SettingsFormData>({
-    resolver: zodResolver(settingsSchema),
+    resolver: zodResolver(settingsSchema) as unknown as Resolver<SettingsFormData>,
     defaultValues: settings || { minInterval: 5, dailyCap: 1000, maxConcurrency: 5 },
   });
   useEffect(() => {

@@ -16,7 +16,7 @@ export function useScheduler(): SchedulerControls {
   const [countdown, setCountdown] = useState(0);
   const [runsCompleted, setRunsCompleted] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reloadWindowRef = useRef<Window | null>(null);
   const clearTimer = useCallback(() => {
     if (intervalRef.current) {
@@ -104,6 +104,9 @@ export function useScheduler(): SchedulerControls {
     toast("Scheduler started!", {
       description: "For best results, keep this tab active. Browsers may slow down timers in background tabs.",
     });
+    // Open a dedicated control window now (inside the user gesture) so subsequent reloads
+    // reuse this window and are less likely to be blocked by popup blockers.
+    reloadWindowRef.current = window.open('about:blank', '_blank');
     const safeInterval = Math.max(5, newSchedule.intervalSeconds);
     setActiveSchedule({ ...newSchedule, intervalSeconds: safeInterval, status: 'running' });
     setCountdown(safeInterval);
