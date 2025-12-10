@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -38,6 +38,7 @@ async function createSchedule(data: ScheduleFormData): Promise<ApiResponse<Sched
   return responseData;
 }
 export function HomePage() {
+  const openerRef = useRef<Window | null>(null);
   const { start, pause, resume, stop, activeSchedule, countdown, runsCompleted, isRunning } = useScheduler();
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -46,17 +47,33 @@ export function HomePage() {
       if (response.success && response.data) {
         toast.dismiss();
         toast.success('Schedule created successfully!');
-        start(response.data);
+        start(response.data, openerRef.current);
         queryClient.invalidateQueries({ queryKey: ['schedules'] });
+        openerRef.current = null;
       } else {
+        if (openerRef.current) {
+          try { openerRef.current.close(); } catch (err) { console.warn('Failed to close opener window', err); }
+          openerRef.current = null;
+        }
         toast.error(typeof response.error === 'string' ? response.error : 'An unknown error occurred.');
       }
     },
     onError: (error: Error) => {
+      if (openerRef.current) {
+        try { openerRef.current.close(); } catch (err) { console.warn('Failed to close opener window', err); }
+        openerRef.current = null;
+      }
       toast.error(`Error: ${error.message}`);
     },
   });
   const handleStartSchedule = (data: ScheduleFormData) => {
+    // Open a window synchronously to avoid popup blockers and keep a reference for the scheduler
+    try {
+      openerRef.current = window.open('about:blank', '_blank');
+    } catch (err) {
+      console.warn('Failed to open opener window', err);
+      openerRef.current = null;
+    }
     toast.loading('Creating schedule...');
     mutation.mutate(data);
   };
