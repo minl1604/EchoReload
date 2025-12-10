@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -9,8 +9,8 @@ import { SchedulerForm, ScheduleFormData } from '@/components/SchedulerForm';
 import { ReloadCard } from '@/components/ReloadCard';
 import { useScheduler } from '@/hooks/use-scheduler';
 import { Badge } from '@/components/ui/badge';
-import { useMutation } from '@tanstack/react-query';
-import queryClient from '@/lib/queryClient';
+
+
 import { ApiResponse, Schedule } from '@shared/types';
 import { toast } from 'sonner';
 const FeatureCard = ({ icon, title, children }: { icon: React.ReactNode, title: string, children: React.ReactNode }) => (
@@ -42,14 +42,23 @@ export function HomePage() {
   const openerRef = useRef<Window | null>(null);
   const { start, pause, resume, stop, activeSchedule, countdown, runsCompleted, isRunning } = useScheduler();
 
-  const mutation = useMutation({
-    mutationFn: createSchedule,
-    onSuccess: (response) => {
+  const [isCreating, setIsCreating] = useState(false);
+  const handleStartSchedule = async (data: ScheduleFormData) => {
+    // Open a window synchronously to avoid popup blockers and keep a reference for the scheduler
+    try {
+      openerRef.current = window.open('about:blank', '_blank');
+    } catch (err) {
+      console.warn('Failed to open opener window', err);
+      openerRef.current = null;
+    }
+    setIsCreating(true);
+    toast.loading('Creating schedule...');
+    try {
+      const response = await createSchedule(data);
       if (response.success && response.data) {
         toast.dismiss();
         toast.success('Schedule created successfully!');
         start(response.data, openerRef.current);
-        queryClient.invalidateQueries({ queryKey: ['schedules'] });
         openerRef.current = null;
       } else {
         if (openerRef.current) {
@@ -58,25 +67,15 @@ export function HomePage() {
         }
         toast.error(typeof response.error === 'string' ? response.error : 'An unknown error occurred.');
       }
-    },
-    onError: (error: Error) => {
+    } catch (error: any) {
       if (openerRef.current) {
         try { openerRef.current.close(); } catch (err) { console.warn('Failed to close opener window', err); }
         openerRef.current = null;
       }
-      toast.error(`Error: ${error.message}`);
-    },
-  });
-  const handleStartSchedule = (data: ScheduleFormData) => {
-    // Open a window synchronously to avoid popup blockers and keep a reference for the scheduler
-    try {
-      openerRef.current = window.open('about:blank', '_blank');
-    } catch (err) {
-      console.warn('Failed to open opener window', err);
-      openerRef.current = null;
+      toast.error(`Error: ${error?.message ?? 'Unknown error'}`);
+    } finally {
+      setIsCreating(false);
     }
-    toast.loading('Creating schedule...');
-    mutation.mutate(data);
   };
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden">
@@ -124,7 +123,7 @@ export function HomePage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
-                <SchedulerForm onStart={handleStartSchedule} isScheduling={mutation.isPending || isRunning} />
+                <SchedulerForm onStart={handleStartSchedule} isScheduling={isCreating} disabled={isCreating || isRunning} />
               </motion.div>
               <motion.div
                 initial={{ opacity: 0, x: 20 }}

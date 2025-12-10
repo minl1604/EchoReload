@@ -36,8 +36,9 @@ export type ScheduleFormData = z.infer<typeof formSchema>;
 interface SchedulerFormProps {
   onStart: (data: ScheduleFormData) => void;
   isScheduling: boolean;
+  disabled?: boolean;
 }
-export function SchedulerForm({ onStart, isScheduling }: SchedulerFormProps) {
+export function SchedulerForm({ onStart, isScheduling, disabled }: SchedulerFormProps) {
   const form = useForm<ScheduleFormData>({
     resolver: zodResolver(formSchema) as unknown as Resolver<ScheduleFormData>,
     defaultValues: {
@@ -150,7 +151,7 @@ export function SchedulerForm({ onStart, isScheduling }: SchedulerFormProps) {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full btn-gradient text-lg" size="lg" disabled={isScheduling}>
+            <Button type="submit" className="w-full btn-gradient text-lg" size="lg" disabled={isScheduling || disabled}>
               {isScheduling ? 'Scheduling...' : 'Start Controlled Reload'}
             </Button>
           </form>
