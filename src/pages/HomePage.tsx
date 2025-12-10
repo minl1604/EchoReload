@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Toaster } from '@/components/ui/sonner';
@@ -102,13 +102,13 @@ export function HomePage() {
                 </p>
                 <div className="mt-8 flex flex-wrap justify-center gap-4">
                   <Button asChild size="lg" className="btn-gradient group transition-transform hover:scale-105">
-                    <Link to="/monitor">View Dashboard</Link>
+                    <a href="/monitor" aria-label="View Dashboard">View Dashboard</a>
                   </Button>
                   <Button asChild size="lg" variant="outline" className="transition-transform hover:scale-105">
                     <a href="#scheduler">Get Started</a>
                   </Button>
                    <Button asChild size="lg" variant="outline" className="transition-transform hover:scale-105">
-                    <Link to="/settings"><Settings className="size-4 mr-2" /> Settings</Link>
+                    <a href="/settings" aria-label="Settings"><Settings className="size-4 mr-2" /> Settings</a>
                   </Button>
                 </div>
               </motion.div>

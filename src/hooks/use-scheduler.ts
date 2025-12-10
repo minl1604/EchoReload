@@ -11,6 +11,29 @@ interface SchedulerControls {
   runsCompleted: number;
   isRunning: boolean;
 }
+async function reportWithRetry(report: ReportBody, retries = 3): Promise<void> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(report),
+      });
+      if (res.ok) {
+        console.log('[SCHEDULER] Report sent successfully.');
+        return;
+      }
+      throw new Error(`Server responded with status ${res.status}`);
+    } catch (err) {
+      console.error(`[SCHEDULER] Report attempt ${i + 1} failed:`, err);
+      if (i === retries - 1) {
+        toast.error(`Failed to send report after ${retries} attempts.`);
+        throw err; // re-throw the last error
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000)); // wait 1s before retrying
+    }
+  }
+}
 export function useScheduler(): SchedulerControls {
   const [activeSchedule, setActiveSchedule] = useState<Schedule | null>(null);
   const [countdown, setCountdown] = useState(0);
@@ -27,56 +50,53 @@ export function useScheduler(): SchedulerControls {
   const stop = useCallback(() => {
     clearTimer();
     if (reloadWindowRef.current && !reloadWindowRef.current.closed) {
-      reloadWindowRef.current.close();
+      try {
+        reloadWindowRef.current.close();
+      } catch (e) {
+        console.error('[SCHEDULER ERROR] Could not close target window:', e);
+      }
       reloadWindowRef.current = null;
     }
     if (activeSchedule) {
       toast.info(`Schedule "${activeSchedule.label}" stopped.`);
-      setActiveSchedule(s => s ? { ...s, status: 'completed' } : null);
     }
+    setActiveSchedule(null);
     setRunsCompleted(0);
     setIsRunning(false);
+    setCountdown(0);
   }, [activeSchedule, clearTimer]);
   const performReload = useCallback(async () => {
     if (!activeSchedule) return;
     console.log(`[SCHEDULER] Firing reload for: ${activeSchedule.targetUrl}`);
     toast.success(`Reload triggered for ${activeSchedule.label}`);
-    if (!reloadWindowRef.current || reloadWindowRef.current.closed) {
+    try {
+      if (!reloadWindowRef.current || reloadWindowRef.current.closed) {
         reloadWindowRef.current = window.open(activeSchedule.targetUrl, '_blank');
-    } else {
+      } else {
         reloadWindowRef.current.location.href = activeSchedule.targetUrl;
         reloadWindowRef.current.focus();
+      }
+    } catch (e) {
+      console.error('[SCHEDULER ERROR] Failed to open or navigate window:', e);
+      toast.error('Failed to control target window. It might be blocked or cross-origin.');
     }
     const report: ReportBody = {
       scheduleId: activeSchedule.id,
       timestamp: new Date().toISOString(),
       status: 'success',
     };
-    try {
-      const res = await fetch('/api/reports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(report),
-      });
-      if (!res.ok) {
-        throw new Error('Server responded with an error.');
-      }
-    } catch (err) {
-      console.error("Failed to send report:", err);
-      toast.error(`Report failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
+    await reportWithRetry(report);
     setRunsCompleted(prev => {
       const newCount = prev + 1;
       if (activeSchedule.count && newCount >= activeSchedule.count) {
         toast.success(`Schedule "${activeSchedule.label}" completed.`);
         stop();
-        if (reloadWindowRef.current && !reloadWindowRef.current.closed) {
-          reloadWindowRef.current.close();
-        }
       }
       return newCount;
     });
-    setCountdown(activeSchedule.intervalSeconds);
+    if (activeSchedule.status === 'running') {
+      setCountdown(activeSchedule.intervalSeconds);
+    }
   }, [activeSchedule, stop]);
   const tick = useCallback(() => {
     setCountdown(prev => {
@@ -90,29 +110,27 @@ export function useScheduler(): SchedulerControls {
   const start = useCallback((newSchedule: Schedule, opener?: Window | null) => {
     stop();
     try {
-        const url = new URL(newSchedule.targetUrl);
-        if (url.origin !== window.location.origin) {
-            toast.warning("Cross-origin target detected", {
-                description: "For best results, use same-origin URLs for QA testing.",
-            });
-        }
+      new URL(newSchedule.targetUrl);
     } catch (e) {
-        // Invalid URL, will be caught by form validation but good to have a safeguard
-        toast.error("Invalid target URL provided.");
-        return;
+      toast.error("Invalid target URL provided.");
+      return;
     }
     toast("Scheduler started!", {
       description: "For best results, keep this tab active. Browsers may slow down timers in background tabs.",
     });
-    // Prefer a provided opener window to avoid popup blockers; otherwise try to open a control window.
     if (opener) {
       reloadWindowRef.current = opener;
     } else {
-      const opened = window.open('about:blank', '_blank');
-      if (opened) {
-        reloadWindowRef.current = opened;
-      } else {
-        toast.warning("Could not open control window. Popups may be blocked; reloads may be prevented.");
+      try {
+        const opened = window.open('about:blank', '_blank');
+        if (opened) {
+          reloadWindowRef.current = opened;
+        } else {
+          throw new Error("window.open returned null");
+        }
+      } catch (e) {
+        console.error('[SCHEDULER ERROR] Could not open control window:', e);
+        toast.warning("Could not open control window. Popups may be blocked.");
       }
     }
     const safeInterval = Math.max(5, newSchedule.intervalSeconds);
@@ -139,7 +157,21 @@ export function useScheduler(): SchedulerControls {
     }
   }, [activeSchedule, tick]);
   useEffect(() => {
-    return () => clearTimer();
-  }, [clearTimer]);
+    const handleVisibilityChange = () => {
+      if (!activeSchedule || activeSchedule.status !== 'running') return;
+      if (document.visibilityState === 'hidden') {
+        console.log('[SCHEDULER] Tab hidden, pausing timer to prevent throttling.');
+        clearTimer();
+      } else {
+        console.log('[SCHEDULER] Tab visible, resuming timer.');
+        intervalRef.current = setInterval(tick, 1000);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearTimer();
+    };
+  }, [activeSchedule, clearTimer, tick]);
   return { start, pause, resume, stop, activeSchedule, countdown, runsCompleted, isRunning };
 }
