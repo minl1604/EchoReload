@@ -1,3 +1,4 @@
+# Demo : https://8001-1cd799b5-36d5-4a48-95ca-dd0f26bc505a-ex6qncs84nofukxl.build-preview.cloudflare.dev/
 # Ethical Reload — Controlled Reload & QA Scheduler
 
 Ethical Reload is a legitimate web application designed for Quality Assurance (QA) testing and performance monitoring. It allows users to schedule controlled browser-based reloads and visits to websites for internal testing purposes, ensuring compliance with ethical standards and site terms of service. The app emphasizes user consent, audit trails, and client-side execution to prevent misuse.
