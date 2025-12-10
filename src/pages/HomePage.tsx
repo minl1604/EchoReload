@@ -1,16 +1,15 @@
 import React, { useRef, useState } from 'react';
-
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { LanguageToggle } from '@/components/LanguageToggle';
 import { Toaster } from '@/components/ui/sonner';
 import { motion } from 'framer-motion';
 import { ShieldCheck, Zap, BarChart2, Settings } from 'lucide-react';
 import { SchedulerForm, ScheduleFormData } from '@/components/SchedulerForm';
 import { ReloadCard } from '@/components/ReloadCard';
 import { useScheduler } from '@/hooks/use-scheduler';
+import { useTranslation } from '@/hooks/use-i18n';
 import { Badge } from '@/components/ui/badge';
-
-
 import { ApiResponse, Schedule } from '@shared/types';
 import { toast } from 'sonner';
 const FeatureCard = ({ icon, title, children }: { icon: React.ReactNode, title: string, children: React.ReactNode }) => (
@@ -41,10 +40,9 @@ async function createSchedule(data: ScheduleFormData): Promise<ApiResponse<Sched
 export function HomePage() {
   const openerRef = useRef<Window | null>(null);
   const { start, pause, resume, stop, activeSchedule, countdown, runsCompleted, isRunning } = useScheduler();
-
+  const { t } = useTranslation();
   const [isCreating, setIsCreating] = useState(false);
   const handleStartSchedule = async (data: ScheduleFormData) => {
-    // Open a window synchronously to avoid popup blockers and keep a reference for the scheduler
     try {
       openerRef.current = window.open('about:blank', '_blank');
     } catch (err) {
@@ -57,7 +55,7 @@ export function HomePage() {
       const response = await createSchedule(data);
       if (response.success && response.data) {
         toast.dismiss();
-        toast.success('Schedule created successfully!');
+        toast.success(t('scheduleCreated'));
         start(response.data, openerRef.current);
         openerRef.current = null;
       } else {
@@ -79,7 +77,8 @@ export function HomePage() {
   };
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden">
-      <ThemeToggle className="fixed top-4 right-4 z-50" />
+      <LanguageToggle />
+      <ThemeToggle />
       <main className="flex-1">
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-primary opacity-10 dark:opacity-20 [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]"></div>
@@ -91,24 +90,23 @@ export function HomePage() {
                 transition={{ duration: 0.6 }}
               >
                 <Badge variant="outline" className="mb-4 border-primary/50 text-primary">
-                  For QA & Testing Purposes
+                  {t('qaBadge')}
                 </Badge>
                 <h1 className="text-5xl md:text-6xl lg:text-7xl font-display font-bold text-balance leading-tight">
-                  Ethical Reload
+                  {t('appTitle')}
                 </h1>
                 <p className="mt-4 text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto text-pretty">
-                  A client-side tool for controlled, consent-based automated testing and performance monitoring.
-                  Built for developers and QA teams.
+                  {t('heroDescription')}
                 </p>
                 <div className="mt-8 flex flex-wrap justify-center gap-4">
                   <Button asChild size="lg" className="btn-gradient group transition-transform hover:scale-105">
-                    <a href="/monitor" aria-label="View Dashboard">View Dashboard</a>
+                    <a href="/monitor" aria-label={t('viewDashboard')}>{t('viewDashboard')}</a>
                   </Button>
                   <Button asChild size="lg" variant="outline" className="transition-transform hover:scale-105">
-                    <a href="#scheduler">Get Started</a>
+                    <a href="#scheduler">{t('getStarted')}</a>
                   </Button>
                    <Button asChild size="lg" variant="outline" className="transition-transform hover:scale-105">
-                    <a href="/settings" aria-label="Settings"><Settings className="size-4 mr-2" /> Settings</a>
+                    <a href="/settings" aria-label={t('settings')}><Settings className="size-4 mr-2" /> {t('settings')}</a>
                   </Button>
                 </div>
               </motion.div>
@@ -146,9 +144,9 @@ export function HomePage() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="py-16 md:py-24 lg:py-32">
                 <div className="text-center max-w-2xl mx-auto">
-                <h2 className="text-3xl md:text-4xl font-bold font-display">Responsible & Transparent Testing</h2>
+                <h2 className="text-3xl md:text-4xl font-bold font-display">{t('responsibleTitle')}</h2>
                 <p className="mt-4 text-muted-foreground text-lg">
-                    Our platform is designed with safety and ethics at its core. We do not facilitate harmful or deceptive practices.
+                    {t('responsibleDescription')}
                 </p>
                 </div>
                 <motion.div
@@ -158,14 +156,14 @@ export function HomePage() {
                     viewport={{ once: true, amount: 0.3 }}
                     transition={{ staggerChildren: 0.2 }}
                 >
-                    <FeatureCard icon={<ShieldCheck />} title="Consent-Based">
-                        Every schedule requires explicit confirmation of ownership or permission, with an audit trail.
+                    <FeatureCard icon={<ShieldCheck />} title={t('consentBased')}>
+                        {t('consentBasedDesc')}
                     </FeatureCard>
-                    <FeatureCard icon={<Zap />} title="Client-Side Only">
-                        Reloads are initiated by your browser. Our servers only store metadata, never making requests on your behalf.
+                    <FeatureCard icon={<Zap />} title={t('clientSideOnly')}>
+                        {t('clientSideOnlyDesc')}
                     </FeatureCard>
-                    <FeatureCard icon={<BarChart2 />} title="Built for QA">
-                        Perfect for load testing, uptime monitoring, and automating repetitive checks in a controlled environment.
+                    <FeatureCard icon={<BarChart2 />} title={t('builtForQA')}>
+                        {t('builtForQADesc')}
                     </FeatureCard>
                 </motion.div>
             </div>
@@ -174,7 +172,7 @@ export function HomePage() {
       </main>
       <footer className="bg-muted/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-sm text-muted-foreground">
-          <p>Built with ❤️ at Cloudflare. This is a demo for QA and testing purposes only.</p>
+          <p>{t('footerText')}</p>
         </div>
       </footer>
       <Toaster richColors closeButton />

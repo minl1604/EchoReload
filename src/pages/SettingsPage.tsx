@@ -15,8 +15,10 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { LanguageToggle } from '@/components/LanguageToggle';
 import { ArrowLeft, Save, ShieldCheck } from 'lucide-react';
 import { ApiResponse, Settings, ConsentProof } from '@shared/types';
+import { useTranslation } from '@/hooks/use-i18n';
 const settingsSchema = z.object({
   minInterval: z.preprocess(
     (val) => Number(val),
@@ -53,7 +55,7 @@ async function fetchAuditLogs(): Promise<ConsentProof[]> {
     return data.data;
 }
 export function SettingsPage() {
-
+  const { t } = useTranslation();
   const { data: settings, isLoading: isLoadingSettings } = useQuery({
     queryKey: ['settings'],
     queryFn: fetchSettings,
@@ -75,7 +77,7 @@ export function SettingsPage() {
     mutationFn: updateSettings,
     onSuccess: (response) => {
       if (response.success) {
-        toast.success('Settings updated successfully!');
+        toast.success(t('settingsUpdated'));
         queryClient.invalidateQueries({ queryKey: ['settings'] });
       } else {
         toast.error(response.error as string || 'Failed to update settings.');
@@ -88,7 +90,8 @@ export function SettingsPage() {
   }
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <ThemeToggle className="fixed top-4 right-4 z-50" />
+      <LanguageToggle />
+      <ThemeToggle />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="py-8 md:py-10 lg:py-12">
           <header className="space-y-4 mb-8">
@@ -99,8 +102,8 @@ export function SettingsPage() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-4xl md:text-5xl font-display font-bold">Settings</h1>
-              <p className="text-lg text-muted-foreground">Manage global safety controls and review audit logs.</p>
+              <h1 className="text-4xl md:text-5xl font-display font-bold">{t('settingsTitle')}</h1>
+              <p className="text-lg text-muted-foreground">{t('settingsDesc')}</p>
             </div>
           </header>
           <motion.div
@@ -111,8 +114,8 @@ export function SettingsPage() {
           >
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><ShieldCheck /> Global Safety Controls</CardTitle>
-                <CardDescription>These settings apply to all schedules to prevent misuse.</CardDescription>
+                <CardTitle className="flex items-center gap-2"><ShieldCheck /> {t('safetyControls')}</CardTitle>
+                <CardDescription>{t('safetyDesc')}</CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoadingSettings ? (
@@ -127,28 +130,28 @@ export function SettingsPage() {
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                       <FormField control={form.control} name="minInterval" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Minimum Interval (seconds)</FormLabel>
+                          <FormLabel>{t('minIntervalLabel')}</FormLabel>
                           <FormControl><Input type="number" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
                       <FormField control={form.control} name="dailyCap" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Daily Reload Cap (per user)</FormLabel>
+                          <FormLabel>{t('dailyCapLabel')}</FormLabel>
                           <FormControl><Input type="number" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
                       <FormField control={form.control} name="maxConcurrency" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Max Concurrent Schedules (per user)</FormLabel>
+                          <FormLabel>{t('maxConcurrencyLabel')}</FormLabel>
                           <FormControl><Input type="number" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
                       <Button type="submit" disabled={mutation.isPending}>
                         <Save className="size-4 mr-2" />
-                        {mutation.isPending ? 'Saving...' : 'Save Settings'}
+                        {mutation.isPending ? t('saving') : t('saveSettings')}
                       </Button>
                     </form>
                   </Form>
@@ -157,8 +160,8 @@ export function SettingsPage() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Consent Audit Log</CardTitle>
-                <CardDescription>Record of all schedule creation consents.</CardDescription>
+                <CardTitle>{t('auditTitle')}</CardTitle>
+                <CardDescription>{t('auditDesc')}</CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoadingAudit ? (
@@ -168,8 +171,8 @@ export function SettingsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Timestamp</TableHead>
-                          <TableHead>User Agent Hash (SHA-1)</TableHead>
+                          <TableHead>{t('tableTimestamp')}</TableHead>
+                          <TableHead>{t('tableHash')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>

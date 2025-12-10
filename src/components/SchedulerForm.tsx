@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info, PlayCircle } from 'lucide-react';
+import { useTranslation } from '@/hooks/use-i18n';
 const formSchema = z.object({
   targetUrl: z.string().url({ message: 'Please enter a valid URL.' }),
   intervalSeconds: z.preprocess(
@@ -39,6 +40,7 @@ interface SchedulerFormProps {
   disabled?: boolean;
 }
 export function SchedulerForm({ onStart, isScheduling, disabled }: SchedulerFormProps) {
+  const { t } = useTranslation();
   const form = useForm<ScheduleFormData>({
     resolver: zodResolver(formSchema) as unknown as Resolver<ScheduleFormData>,
     defaultValues: {
@@ -57,9 +59,9 @@ export function SchedulerForm({ onStart, isScheduling, disabled }: SchedulerForm
       <CardHeader>
         <CardTitle className="text-2xl font-bold flex items-center gap-2">
           <PlayCircle className="text-primary" />
-          New QA Schedule
+          {t('newScheduleTitle')}
         </CardTitle>
-        <CardDescription>Configure a controlled reload schedule for testing purposes.</CardDescription>
+        <CardDescription>{t('scheduleDescription')}</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -69,9 +71,9 @@ export function SchedulerForm({ onStart, isScheduling, disabled }: SchedulerForm
               name="label"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Label</FormLabel>
+                  <FormLabel>{t('label')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Staging Server Health Check" {...field} />
+                    <Input placeholder={t('labelPlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -82,11 +84,11 @@ export function SchedulerForm({ onStart, isScheduling, disabled }: SchedulerForm
               name="targetUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Target URL</FormLabel>
+                  <FormLabel>{t('targetUrl')}</FormLabel>
                   <FormControl>
                     <Input placeholder="https://your-qa-server.com" {...field} />
                   </FormControl>
-                  <FormDescription>The URL to reload. Must be a server you own or have permission to test.</FormDescription>
+                  <FormDescription>{t('targetUrlDesc')}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -98,14 +100,14 @@ export function SchedulerForm({ onStart, isScheduling, disabled }: SchedulerForm
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center gap-1">
-                      Interval (sec)
+                      {t('intervalLabel')}
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Info className="size-3 cursor-help" />
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Minimum 5 seconds to prevent abuse.</p>
+                            <p>{t('intervalTooltip')}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -122,7 +124,7 @@ export function SchedulerForm({ onStart, isScheduling, disabled }: SchedulerForm
                 name="count"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reload Count</FormLabel>
+                    <FormLabel>{t('countLabel')}</FormLabel>
                     <FormControl>
                       <Input type="number" min="1" {...field} />
                     </FormControl>
@@ -141,10 +143,10 @@ export function SchedulerForm({ onStart, isScheduling, disabled }: SchedulerForm
                   </FormControl>
                   <div className="space-y-1 leading-none">
                     <FormLabel>
-                      I confirm I own this domain or have explicit permission to perform this automated test.
+                      {t('consentLabel')}
                     </FormLabel>
                     <FormDescription>
-                      This tool must be used ethically and legally.
+                      {t('consentDescription')}
                     </FormDescription>
                     <FormMessage />
                   </div>
@@ -152,7 +154,7 @@ export function SchedulerForm({ onStart, isScheduling, disabled }: SchedulerForm
               )}
             />
             <Button type="submit" className="w-full btn-gradient text-lg" size="lg" disabled={isScheduling || disabled}>
-              {isScheduling ? 'Scheduling...' : 'Start Controlled Reload'}
+              {isScheduling ? t('scheduling') : t('startButton')}
             </Button>
           </form>
         </Form>

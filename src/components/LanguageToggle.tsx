@@ -1,6 +1,6 @@
 import React from 'react';
-
-
+import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,21 +15,19 @@ const VietnamFlag = () => (
     <path d="M450 183l83.1 255.9-217.3-158.2h268.4L366.9 438.9z" fill="#ff0"/>
   </svg>
 );
-export function LanguageToggle({ className = "absolute top-4 right-20 z-50" }: { className?: string }) {
+export function LanguageToggle({ className = "fixed top-4 right-20 z-50" }: { className?: string }) {
   const { language, setLanguage } = useTranslation();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label="Toggle language"
-          className={`${className} h-9 w-9 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground transition-all focus-visible:outline-none`}
-        >
-          {language === 'vi' ? <VietnamFlag /> : <Globe className="size-5" />}
-          <span className="sr-only">Toggle language</span>
-        </button>
+        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+          <Button variant="ghost" size="icon" className={className}>
+            {language === 'vi' ? <VietnamFlag /> : <Globe className="size-5" />}
+            <span className="sr-only">Toggle language</span>
+          </Button>
+        </motion.div>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="z-50">
+      <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => setLanguage('en')}>
           <Globe className="size-4 mr-2" />
           English

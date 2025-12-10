@@ -9,11 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Pause, Play, Trash2, RefreshCw, Download } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { LanguageToggle } from '@/components/LanguageToggle';
 import { Schedule, ScheduleStatus, ApiResponse, ScheduleLog } from '@shared/types';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, CartesianGrid } from 'recharts';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { useTranslation } from '@/hooks/use-i18n';
 const statusVariant: { [key in ScheduleStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   running: 'default',
   paused: 'secondary',
@@ -45,14 +47,14 @@ async function deleteSchedule(id: string): Promise<ApiResponse<void>> {
   return res.json();
 }
 export function MonitorPage() {
-  // use shared queryClient
+  const { t } = useTranslation();
   const [isDownloading, setIsDownloading] = useState(false);
   const { data: schedules, isLoading: isLoadingSchedules, error: schedulesError, refetch } = useQuery({ queryKey: ['schedules'], queryFn: fetchSchedules });
   const { data: logs, isLoading: isLoadingLogs } = useQuery({ queryKey: ['logs'], queryFn: fetchLogs, initialData: [] });
   const updateMutation = useMutation({
     mutationFn: updateScheduleStatus,
     onSuccess: () => {
-      toast.success('Schedule status updated.');
+      toast.success(t('statusUpdated'));
       queryClient.invalidateQueries({ queryKey: ['schedules'] });
     },
     onError: () => toast.error('Failed to update schedule.'),
@@ -60,7 +62,7 @@ export function MonitorPage() {
   const deleteMutation = useMutation({
     mutationFn: deleteSchedule,
     onSuccess: () => {
-      toast.success('Schedule deleted.');
+      toast.success(t('scheduleDeleted'));
       queryClient.invalidateQueries({ queryKey: ['schedules'] });
     },
     onError: () => toast.error('Failed to delete schedule.'),
@@ -112,7 +114,8 @@ export function MonitorPage() {
   };
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <ThemeToggle className="fixed top-4 right-4 z-50" />
+      <LanguageToggle />
+      <ThemeToggle />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="py-8 md:py-10 lg:py-12">
           <header className="space-y-4 mb-8">
@@ -124,15 +127,15 @@ export function MonitorPage() {
             </Link>
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-4xl md:text-5xl font-display font-bold">Monitor Dashboard</h1>
-                <p className="text-lg text-muted-foreground">View and manage all active and past QA schedules.</p>
+                <h1 className="text-4xl md:text-5xl font-display font-bold">{t('monitorTitle')}</h1>
+                <p className="text-lg text-muted-foreground">{t('monitorDesc')}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isLoadingSchedules}>
                   <RefreshCw className={`size-4 ${isLoadingSchedules ? 'animate-spin' : ''}`} />
                 </Button>
                 <Button variant="outline" onClick={downloadLogs} disabled={isDownloading}>
-                  {isDownloading ? <Skeleton className="h-5 w-20" /> : <><Download className="size-4 mr-2" /> Export Logs</>}
+                  {isDownloading ? <Skeleton className="h-5 w-20" /> : <><Download className="size-4 mr-2" /> {t('exportLogs')}</>}
                 </Button>
               </div>
             </div>
@@ -145,8 +148,8 @@ export function MonitorPage() {
           >
             <Card>
               <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Events reported by clients in the last 30 minutes.</CardDescription>
+                <CardTitle>{t('recentActivity')}</CardTitle>
+                <CardDescription>{t('activityDesc')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="h-64 w-full">
@@ -184,17 +187,17 @@ export function MonitorPage() {
                 ) : schedulesError ? (
                   <div className="text-destructive text-center p-4 rounded-md border border-destructive/50 bg-destructive/10">
                     <p>Failed to load schedules. Please try again.</p>
-                    <Button variant="destructive" className="mt-2" onClick={() => refetch()}>Retry</Button>
+                    <Button variant="destructive" className="mt-2" onClick={() => refetch()}>{t('retry')}</Button>
                   </div>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Label</TableHead>
-                        <TableHead className="hidden md:table-cell">Target</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="hidden sm:table-cell">Created</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>{t('tableLabel')}</TableHead>
+                        <TableHead className="hidden md:table-cell">{t('tableTarget')}</TableHead>
+                        <TableHead>{t('tableStatus')}</TableHead>
+                        <TableHead className="hidden sm:table-cell">{t('tableCreated')}</TableHead>
+                        <TableHead className="text-right">{t('tableActions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -209,7 +212,7 @@ export function MonitorPage() {
                           <TableCell className="font-medium">{schedule.label}</TableCell>
                           <TableCell className="hidden md:table-cell text-muted-foreground truncate max-w-xs">{schedule.targetUrl}</TableCell>
                           <TableCell>
-                            <Badge variant={statusVariant[schedule.status]} className="capitalize">{schedule.status}</Badge>
+                            <Badge variant={statusVariant[schedule.status]} className="capitalize">{t(`status.${schedule.status}` as any)}</Badge>
                           </TableCell>
                           <TableCell className="hidden sm:table-cell text-muted-foreground">
                             {formatDistanceToNow(new Date(schedule.createdAt), { addSuffix: true })}
