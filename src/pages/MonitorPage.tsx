@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import queryClient from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +45,7 @@ async function deleteSchedule(id: string): Promise<ApiResponse<void>> {
   return res.json();
 }
 export function MonitorPage() {
-  const queryClient = useQueryClient();
+  // use shared queryClient
   const [isDownloading, setIsDownloading] = useState(false);
   const { data: schedules, isLoading: isLoadingSchedules, error: schedulesError, refetch } = useQuery({ queryKey: ['schedules'], queryFn: fetchSchedules });
   const { data: logs, isLoading: isLoadingLogs } = useQuery({ queryKey: ['logs'], queryFn: fetchLogs, initialData: [] });

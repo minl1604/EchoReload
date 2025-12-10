@@ -3,7 +3,8 @@ import { useForm, Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -52,7 +53,7 @@ async function fetchAuditLogs(): Promise<ConsentProof[]> {
     return data.data;
 }
 export function SettingsPage() {
-  const queryClient = useQueryClient();
+
   const { data: settings, isLoading: isLoadingSettings } = useQuery({
     queryKey: ['settings'],
     queryFn: fetchSettings,

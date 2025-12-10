@@ -9,7 +9,8 @@ import { SchedulerForm, ScheduleFormData } from '@/components/SchedulerForm';
 import { ReloadCard } from '@/components/ReloadCard';
 import { useScheduler } from '@/hooks/use-scheduler';
 import { Badge } from '@/components/ui/badge';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
+import queryClient from '@/lib/queryClient';
 import { ApiResponse, Schedule } from '@shared/types';
 import { toast } from 'sonner';
 const FeatureCard = ({ icon, title, children }: { icon: React.ReactNode, title: string, children: React.ReactNode }) => (
@@ -40,7 +41,7 @@ async function createSchedule(data: ScheduleFormData): Promise<ApiResponse<Sched
 export function HomePage() {
   const openerRef = useRef<Window | null>(null);
   const { start, pause, resume, stop, activeSchedule, countdown, runsCompleted, isRunning } = useScheduler();
-  const queryClient = useQueryClient();
+
   const mutation = useMutation({
     mutationFn: createSchedule,
     onSuccess: (response) => {
