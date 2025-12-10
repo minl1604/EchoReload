@@ -2,7 +2,7 @@
 
 Ethical Reload is a legitimate web application designed for Quality Assurance (QA) testing and performance monitoring. It allows users to schedule controlled browser-based reloads and visits to websites for internal testing purposes, ensuring compliance with ethical standards and site terms of service. The app emphasizes user consent, audit trails, and client-side execution to prevent misuse.
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/minl1604/EchoReload)
 
 ## Features
 
@@ -149,7 +149,7 @@ Deploy to Cloudflare Workers for global edge execution. The frontend builds to s
 4. **Custom Domain** (Optional):
    Edit `wrangler.jsonc` (do not modify bindings) and run `bun run deploy`.
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/minl1604/EchoReload)
 
 ### Post-Deployment
 - APIs are available at `/api/*` relative to your domain.
