@@ -17,11 +17,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info, PlayCircle } from 'lucide-react';
-import { Schedule } from '@shared/types';
 const formSchema = z.object({
   targetUrl: z.string().url({ message: 'Please enter a valid URL.' }),
-  intervalSeconds: z.coerce.number().min(5, { message: 'Interval must be at least 5 seconds.' }),
-  count: z.coerce.number().min(1, { message: 'Must run at least once.' }).optional(),
+  intervalSeconds: z.preprocess(
+    (val) => Number(val),
+    z.number().min(5, { message: 'Interval must be at least 5 seconds.' })
+  ),
+  count: z.preprocess(
+    (val) => (val ? Number(val) : undefined),
+    z.number().min(1, { message: 'Must run at least once.' }).optional()
+  ),
   label: z.string().min(1, { message: 'Label is required.' }),
   consent: z.boolean().refine((val) => val === true, {
     message: 'You must confirm you have permission to run this test.',
@@ -29,28 +34,22 @@ const formSchema = z.object({
 });
 export type ScheduleFormData = z.infer<typeof formSchema>;
 interface SchedulerFormProps {
-  onStart: (schedule: Schedule) => void;
+  onStart: (data: ScheduleFormData) => void;
   isScheduling: boolean;
 }
 export function SchedulerForm({ onStart, isScheduling }: SchedulerFormProps) {
   const form = useForm<ScheduleFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      targetUrl: 'https://example.com',
+      targetUrl: '',
       intervalSeconds: 10,
-      count: 5,
+      count: 100,
       label: 'QA Test Run',
       consent: false,
     },
   });
   function onSubmit(values: ScheduleFormData) {
-    const newSchedule: Schedule = {
-      id: crypto.randomUUID(),
-      ...values,
-      status: 'running',
-      createdAt: new Date().toISOString(),
-    };
-    onStart(newSchedule);
+    onStart(values);
   }
   return (
     <Card className="w-full max-w-lg bg-card/80 backdrop-blur-sm border-border/50 shadow-lg">
@@ -152,7 +151,7 @@ export function SchedulerForm({ onStart, isScheduling }: SchedulerFormProps) {
               )}
             />
             <Button type="submit" className="w-full btn-gradient text-lg" size="lg" disabled={isScheduling}>
-              {isScheduling ? 'Running...' : 'Start Controlled Reload'}
+              {isScheduling ? 'Scheduling...' : 'Start Controlled Reload'}
             </Button>
           </form>
         </Form>

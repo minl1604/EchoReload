@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Schedule } from '@shared/types';
+import { Schedule, ReportBody } from '@shared/types';
 import { toast } from 'sonner';
 interface SchedulerControls {
   start: (newSchedule: Schedule) => void;
@@ -30,22 +30,36 @@ export function useScheduler(): SchedulerControls {
     }
     if (activeSchedule) {
       toast.info(`Schedule "${activeSchedule.label}" stopped.`);
-      setActiveSchedule(null);
+      setActiveSchedule(s => s ? { ...s, status: 'completed' } : null);
     }
     setRunsCompleted(0);
   }, [activeSchedule, clearTimer]);
-  const performReload = useCallback(() => {
+  const performReload = useCallback(async () => {
     if (!activeSchedule) return;
-    // In a real scenario, you might open a new tab.
-    // For this demo, we'll just log it to avoid disruptive reloads.
     console.log(`[SCHEDULER] Firing reload for: ${activeSchedule.targetUrl}`);
     toast.success(`Reload triggered for ${activeSchedule.label}`);
-    // Mock reporting to a backend
-    fetch('/api/demo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: crypto.randomUUID(), name: `Log for ${activeSchedule.label}`, value: Date.now() }),
-    }).catch(err => console.error("Mock report failed:", err));
+    // Open in a new tab for non-disruptive testing
+    if (!reloadWindowRef.current || reloadWindowRef.current.closed) {
+        reloadWindowRef.current = window.open(activeSchedule.targetUrl, '_blank');
+    } else {
+        reloadWindowRef.current.location.href = activeSchedule.targetUrl;
+        reloadWindowRef.current.focus();
+    }
+    const report: ReportBody = {
+      scheduleId: activeSchedule.id,
+      timestamp: new Date().toISOString(),
+      status: 'success',
+    };
+    try {
+      await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(report),
+      });
+    } catch (err) {
+      console.error("Failed to send report:", err);
+      toast.error("Failed to send report to server.");
+    }
     setRunsCompleted(prev => {
       const newCount = prev + 1;
       if (activeSchedule.count && newCount >= activeSchedule.count) {
@@ -67,9 +81,8 @@ export function useScheduler(): SchedulerControls {
   }, [performReload, activeSchedule]);
   const start = useCallback((newSchedule: Schedule) => {
     stop(); // Stop any existing schedule
-    // IMPORTANT: Inform user about browser limitations for background tabs.
     toast.warning("Scheduler started!", {
-      description: "For best results, keep this tab active or open the target in a new window. Browsers may slow down timers in background tabs.",
+      description: "For best results, keep this tab active. Browsers may slow down timers in background tabs.",
     });
     const safeInterval = Math.max(5, newSchedule.intervalSeconds);
     setActiveSchedule({ ...newSchedule, intervalSeconds: safeInterval, status: 'running' });

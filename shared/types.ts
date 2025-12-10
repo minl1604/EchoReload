@@ -9,6 +9,10 @@ export interface ApiResponse<T = unknown> {
   error?: string;
 }
 export type ScheduleStatus = 'running' | 'paused' | 'completed' | 'error';
+export interface ConsentProof {
+  userAgentHash: string;
+  timestamp: string;
+}
 export interface Schedule {
   id: string;
   label: string;
@@ -17,6 +21,7 @@ export interface Schedule {
   count?: number;
   status: ScheduleStatus;
   createdAt: string;
+  consentProof?: ConsentProof;
 }
 export interface ScheduleLog {
   id: string;
@@ -25,3 +30,4 @@ export interface ScheduleLog {
   status: 'success' | 'failure';
   message?: string;
 }
+export type ReportBody = Omit<ScheduleLog, 'id'>;

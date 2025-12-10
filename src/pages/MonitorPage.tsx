@@ -1,43 +1,81 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { MOCK_SCHEDULES, MOCK_LOGS } from '@shared/mock-data';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Pause, Play, Trash2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ArrowLeft, Pause, Play, Trash2, RefreshCw } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Schedule, ScheduleStatus } from '@shared/types';
+import { Schedule, ScheduleStatus, ApiResponse, ScheduleLog } from '@shared/types';
 import { formatDistanceToNow } from 'date-fns';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, CartesianGrid } from 'recharts';
+import { toast } from 'sonner';
 const statusVariant: { [key in ScheduleStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   running: 'default',
   paused: 'secondary',
   completed: 'outline',
   error: 'destructive',
 };
+async function fetchSchedules(): Promise<Schedule[]> {
+  const res = await fetch('/api/schedules');
+  const data: ApiResponse<Schedule[]> = await res.json();
+  if (!data.success || !data.data) throw new Error(data.error || 'Failed to fetch schedules');
+  return data.data;
+}
+async function fetchLogs(): Promise<ScheduleLog[]> {
+  const res = await fetch('/api/logs/all'); // A placeholder, ideally we'd fetch logs per schedule or all
+  const data: ApiResponse<ScheduleLog[]> = await res.json();
+  if (!data.success || !data.data) return []; // Return empty on failure for chart
+  return data.data;
+}
+async function updateScheduleStatus(schedule: Schedule): Promise<ApiResponse<Schedule>> {
+  const res = await fetch(`/api/schedules/${schedule.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: schedule.status === 'running' ? 'paused' : 'running' }),
+  });
+  return res.json();
+}
+async function deleteSchedule(id: string): Promise<ApiResponse<void>> {
+  const res = await fetch(`/api/schedules/${id}`, { method: 'DELETE' });
+  return res.json();
+}
 export function MonitorPage() {
-  const [schedules, setSchedules] = React.useState<Schedule[]>(MOCK_SCHEDULES);
-  const handleTogglePause = (id: string) => {
-    setSchedules(schedules.map(s => s.id === id ? { ...s, status: s.status === 'running' ? 'paused' : 'running' } : s));
-  };
-  const handleCancel = (id: string) => {
-    setSchedules(schedules.filter(s => s.id !== id));
-  };
+  const queryClient = useQueryClient();
+  const { data: schedules, isLoading, error, refetch } = useQuery({ queryKey: ['schedules'], queryFn: fetchSchedules });
+  const { data: logs } = useQuery({ queryKey: ['logs'], queryFn: fetchLogs, initialData: [] });
+  const updateMutation = useMutation({
+    mutationFn: updateScheduleStatus,
+    onSuccess: () => {
+      toast.success('Schedule status updated.');
+      queryClient.invalidateQueries({ queryKey: ['schedules'] });
+    },
+    onError: () => toast.error('Failed to update schedule.'),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: deleteSchedule,
+    onSuccess: () => {
+      toast.success('Schedule deleted.');
+      queryClient.invalidateQueries({ queryKey: ['schedules'] });
+    },
+    onError: () => toast.error('Failed to delete schedule.'),
+  });
   const chartData = useMemo(() => {
     const now = new Date();
     const dataPoints = Array.from({ length: 10 }, (_, i) => {
       const date = new Date(now.getTime() - (9 - i) * 60000);
       return {
         time: `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`,
-        events: MOCK_LOGS.filter(log => {
+        events: (logs || []).filter(log => {
           const logDate = new Date(log.timestamp);
           return logDate > new Date(date.getTime() - 60000) && logDate <= date;
         }).length,
       };
     });
     return dataPoints;
-  }, []);
+  }, [logs]);
   return (
     <div className="min-h-screen bg-background text-foreground">
       <ThemeToggle className="fixed top-4 right-4" />
@@ -50,8 +88,15 @@ export function MonitorPage() {
                 Back to Home
               </Button>
             </Link>
-            <h1 className="text-4xl md:text-5xl font-display font-bold">Monitor Dashboard</h1>
-            <p className="text-lg text-muted-foreground">View and manage all active and past QA schedules.</p>
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-4xl md:text-5xl font-display font-bold">Monitor Dashboard</h1>
+                <p className="text-lg text-muted-foreground">View and manage all active and past QA schedules.</p>
+              </div>
+              <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isLoading}>
+                <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </header>
           <div className="space-y-8">
             <Card>
@@ -84,39 +129,49 @@ export function MonitorPage() {
                 <CardTitle>All Schedules</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Label</TableHead>
-                      <TableHead className="hidden md:table-cell">Target</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="hidden sm:table-cell">Created</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {schedules.map((schedule) => (
-                      <TableRow key={schedule.id}>
-                        <TableCell className="font-medium">{schedule.label}</TableCell>
-                        <TableCell className="hidden md:table-cell text-muted-foreground truncate max-w-xs">{schedule.targetUrl}</TableCell>
-                        <TableCell>
-                          <Badge variant={statusVariant[schedule.status]} className="capitalize">{schedule.status}</Badge>
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell text-muted-foreground">
-                          {formatDistanceToNow(new Date(schedule.createdAt), { addSuffix: true })}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handleTogglePause(schedule.id)} disabled={schedule.status === 'completed'}>
-                            {schedule.status === 'running' ? <Pause className="size-4" /> : <Play className="size-4" />}
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleCancel(schedule.id)}>
-                            <Trash2 className="size-4 text-destructive" />
-                          </Button>
-                        </TableCell>
+                {isLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ) : error ? (
+                  <div className="text-destructive text-center p-4">Failed to load schedules. Please try again.</div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Label</TableHead>
+                        <TableHead className="hidden md:table-cell">Target</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="hidden sm:table-cell">Created</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {schedules?.map((schedule) => (
+                        <TableRow key={schedule.id}>
+                          <TableCell className="font-medium">{schedule.label}</TableCell>
+                          <TableCell className="hidden md:table-cell text-muted-foreground truncate max-w-xs">{schedule.targetUrl}</TableCell>
+                          <TableCell>
+                            <Badge variant={statusVariant[schedule.status]} className="capitalize">{schedule.status}</Badge>
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell text-muted-foreground">
+                            {formatDistanceToNow(new Date(schedule.createdAt), { addSuffix: true })}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => updateMutation.mutate(schedule)} disabled={schedule.status === 'completed' || updateMutation.isPending}>
+                              {schedule.status === 'running' ? <Pause className="size-4" /> : <Play className="size-4" />}
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(schedule.id)} disabled={deleteMutation.isPending}>
+                              <Trash2 className="size-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>>
+                )}
               </CardContent>
             </Card>
           </div>

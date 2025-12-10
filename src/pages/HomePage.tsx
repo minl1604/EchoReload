@@ -5,10 +5,13 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Toaster } from '@/components/ui/sonner';
 import { motion } from 'framer-motion';
 import { ShieldCheck, Zap, BarChart2 } from 'lucide-react';
-import { SchedulerForm } from '@/components/SchedulerForm';
+import { SchedulerForm, ScheduleFormData } from '@/components/SchedulerForm';
 import { ReloadCard } from '@/components/ReloadCard';
 import { useScheduler } from '@/hooks/use-scheduler';
 import { Badge } from '@/components/ui/badge';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { ApiResponse, Schedule } from '@shared/types';
+import { toast } from 'sonner';
 const FeatureCard = ({ icon, title, children }: { icon: React.ReactNode, title: string, children: React.ReactNode }) => (
   <div className="bg-card/50 p-6 rounded-lg border border-border/30 shadow-sm">
     <div className="flex items-center gap-4">
@@ -18,8 +21,39 @@ const FeatureCard = ({ icon, title, children }: { icon: React.ReactNode, title: 
     <p className="mt-2 text-muted-foreground">{children}</p>
   </div>
 );
+async function createSchedule(data: ScheduleFormData): Promise<ApiResponse<Schedule>> {
+  const response = await fetch('/api/schedules', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to create schedule');
+  }
+  return response.json();
+}
 export function HomePage() {
   const { start, pause, resume, stop, activeSchedule, countdown, runsCompleted } = useScheduler();
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: createSchedule,
+    onSuccess: (response) => {
+      if (response.success && response.data) {
+        toast.success('Schedule created successfully!');
+        start(response.data);
+        queryClient.invalidateQueries({ queryKey: ['schedules'] });
+      } else {
+        toast.error(response.error || 'An unknown error occurred.');
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(`Error: ${error.message}`);
+    },
+  });
+  const handleStartSchedule = (data: ScheduleFormData) => {
+    mutation.mutate(data);
+  };
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden">
       <ThemeToggle className="fixed top-4 right-4 z-50" />
@@ -64,14 +98,14 @@ export function HomePage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
-                <SchedulerForm onStart={start} isScheduling={!!activeSchedule} />
+                <SchedulerForm onStart={handleStartSchedule} isScheduling={mutation.isPending || !!activeSchedule} />
               </motion.div>
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
-                <ReloadCard 
+                <ReloadCard
                   schedule={activeSchedule}
                   countdown={countdown}
                   runsCompleted={runsCompleted}
