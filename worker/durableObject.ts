@@ -1,8 +1,8 @@
 import { DurableObject } from "cloudflare:workers";
-import type { DemoItem, Schedule, ScheduleLog } from '@shared/types';
+import type { DemoItem, Schedule, ScheduleLog, Settings, ConsentProof } from '@shared/types';
 import { MOCK_ITEMS } from '@shared/mock-data';
 const LOG_CAP = 5000;
-// **DO NOT MODIFY THE CLASS NAME**
+const AUDIT_CAP = 1000;
 export class GlobalDurableObject extends DurableObject {
     // --- Existing Demo Methods ---
     async getCounterValue(): Promise<number> {
@@ -15,39 +15,11 @@ export class GlobalDurableObject extends DurableObject {
       await this.ctx.storage.put("counter_value", value);
       return value;
     }
-    async decrement(amount = 1): Promise<number> {
-      let value: number = (await this.ctx.storage.get("counter_value")) || 0;
-      value -= amount;
-      await this.ctx.storage.put("counter_value", value);
-      return value;
-    }
     async getDemoItems(): Promise<DemoItem[]> {
       const items = await this.ctx.storage.get<DemoItem[]>("demo_items");
-      if (items) {
-        return items;
-      }
+      if (items) return items;
       await this.ctx.storage.put("demo_items", MOCK_ITEMS);
       return MOCK_ITEMS;
-    }
-    async addDemoItem(item: DemoItem): Promise<DemoItem[]> {
-      const items = await this.getDemoItems();
-      const updatedItems = [...items, item];
-      await this.ctx.storage.put("demo_items", updatedItems);
-      return updatedItems;
-    }
-    async updateDemoItem(id: string, updates: Partial<Omit<DemoItem, 'id'>>): Promise<DemoItem[]> {
-      const items = await this.getDemoItems();
-      const updatedItems = items.map(item =>
-        item.id === id ? { ...item, ...updates } : item
-      );
-      await this.ctx.storage.put("demo_items", updatedItems);
-      return updatedItems;
-    }
-    async deleteDemoItem(id: string): Promise<DemoItem[]> {
-      const items = await this.getDemoItems();
-      const updatedItems = items.filter(item => item.id !== id);
-      await this.ctx.storage.put("demo_items", updatedItems);
-      return updatedItems;
     }
     // --- New Schedule & Log Methods ---
     async getSchedules(): Promise<Schedule[]> {
@@ -57,6 +29,13 @@ export class GlobalDurableObject extends DurableObject {
         const schedules = await this.getSchedules();
         schedules.push(schedule);
         await this.ctx.storage.put("schedules", schedules);
+        // Add to audit log
+        if (schedule.consentProof) {
+            const audits = await this.getAuditLogs();
+            audits.push(schedule.consentProof);
+            const cappedAudits = audits.slice(-AUDIT_CAP);
+            await this.ctx.storage.put('audit_logs', cappedAudits);
+        }
         return schedule;
     }
     async updateSchedule(id: string, updates: Partial<Schedule>): Promise<Schedule | null> {
@@ -93,8 +72,21 @@ export class GlobalDurableObject extends DurableObject {
     async addLog(log: ScheduleLog): Promise<void> {
         const logs = await this.getLogs();
         logs.push(log);
-        // Cap the logs to the most recent LOG_CAP entries
         const cappedLogs = logs.slice(-LOG_CAP);
         await this.ctx.storage.put("logs", cappedLogs);
+    }
+    // --- New Settings & Audit Methods ---
+    async getSettings(): Promise<Settings> {
+        const settings = await this.ctx.storage.get<Settings>('settings');
+        return settings || { minInterval: 5, dailyCap: 1000, maxConcurrency: 5 };
+    }
+    async updateSettings(updates: Partial<Settings>): Promise<Settings> {
+        const current = await this.getSettings();
+        const updated = { ...current, ...updates };
+        await this.ctx.storage.put('settings', updated);
+        return updated;
+    }
+    async getAuditLogs(): Promise<ConsentProof[]> {
+        return (await this.ctx.storage.get<ConsentProof[]>('audit_logs')) || [];
     }
 }

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Toaster } from '@/components/ui/sonner';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Zap, BarChart2 } from 'lucide-react';
+import { ShieldCheck, Zap, BarChart2, Settings } from 'lucide-react';
 import { SchedulerForm, ScheduleFormData } from '@/components/SchedulerForm';
 import { ReloadCard } from '@/components/ReloadCard';
 import { useScheduler } from '@/hooks/use-scheduler';
@@ -13,13 +13,16 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiResponse, Schedule } from '@shared/types';
 import { toast } from 'sonner';
 const FeatureCard = ({ icon, title, children }: { icon: React.ReactNode, title: string, children: React.ReactNode }) => (
-  <div className="bg-card/50 p-6 rounded-lg border border-border/30 shadow-sm">
+  <motion.div
+    className="bg-card/50 p-6 rounded-lg border border-border/30 shadow-sm"
+    whileHover={{ y: -5, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)" }}
+  >
     <div className="flex items-center gap-4">
       <div className="bg-primary/10 text-primary p-3 rounded-full">{icon}</div>
       <h3 className="text-lg font-semibold">{title}</h3>
     </div>
     <p className="mt-2 text-muted-foreground">{children}</p>
-  </div>
+  </motion.div>
 );
 async function createSchedule(data: ScheduleFormData): Promise<ApiResponse<Schedule>> {
   const response = await fetch('/api/schedules', {
@@ -27,24 +30,26 @@ async function createSchedule(data: ScheduleFormData): Promise<ApiResponse<Sched
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
+  const responseData = await response.json();
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to create schedule');
+    const errorMessage = typeof responseData.error === 'string' ? responseData.error : 'Failed to create schedule';
+    throw new Error(errorMessage);
   }
-  return response.json();
+  return responseData;
 }
 export function HomePage() {
-  const { start, pause, resume, stop, activeSchedule, countdown, runsCompleted } = useScheduler();
+  const { start, pause, resume, stop, activeSchedule, countdown, runsCompleted, isRunning } = useScheduler();
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: createSchedule,
     onSuccess: (response) => {
       if (response.success && response.data) {
+        toast.dismiss();
         toast.success('Schedule created successfully!');
         start(response.data);
         queryClient.invalidateQueries({ queryKey: ['schedules'] });
       } else {
-        toast.error(response.error || 'An unknown error occurred.');
+        toast.error(typeof response.error === 'string' ? response.error : 'An unknown error occurred.');
       }
     },
     onError: (error: Error) => {
@@ -52,6 +57,7 @@ export function HomePage() {
     },
   });
   const handleStartSchedule = (data: ScheduleFormData) => {
+    toast.loading('Creating schedule...');
     mutation.mutate(data);
   };
   return (
@@ -59,8 +65,7 @@ export function HomePage() {
       <ThemeToggle className="fixed top-4 right-4 z-50" />
       <main className="flex-1">
         <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-b from-background to-transparent bg-opacity-50 z-0"></div>
-          <div className="absolute inset-0 opacity-20 dark:opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, hsl(var(--primary) / 0.1), transparent 50%), radial-gradient(circle at 80% 70%, hsl(242,100%,70%,0.1), transparent 50%)' }}></div>
+          <div className="absolute inset-0 bg-gradient-primary opacity-10 dark:opacity-20 [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]"></div>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="py-16 md:py-24 lg:py-32 text-center">
               <motion.div
@@ -68,7 +73,7 @@ export function HomePage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
               >
-                <Badge variant="outline" className="mb-4">
+                <Badge variant="outline" className="mb-4 border-primary/50 text-primary">
                   For QA & Testing Purposes
                 </Badge>
                 <h1 className="text-5xl md:text-6xl lg:text-7xl font-display font-bold text-balance leading-tight">
@@ -78,12 +83,15 @@ export function HomePage() {
                   A client-side tool for controlled, consent-based automated testing and performance monitoring.
                   Built for developers and QA teams.
                 </p>
-                <div className="mt-8 flex justify-center gap-4">
-                  <Button asChild size="lg" className="btn-gradient">
+                <div className="mt-8 flex flex-wrap justify-center gap-4">
+                  <Button asChild size="lg" className="btn-gradient group transition-transform hover:scale-105">
                     <Link to="/monitor">View Dashboard</Link>
                   </Button>
-                  <Button asChild size="lg" variant="outline">
+                  <Button asChild size="lg" variant="outline" className="transition-transform hover:scale-105">
                     <a href="#scheduler">Get Started</a>
+                  </Button>
+                   <Button asChild size="lg" variant="outline" className="transition-transform hover:scale-105">
+                    <Link to="/settings"><Settings className="size-4 mr-2" /> Settings</Link>
                   </Button>
                 </div>
               </motion.div>
@@ -98,7 +106,7 @@ export function HomePage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
-                <SchedulerForm onStart={handleStartSchedule} isScheduling={mutation.isPending || !!activeSchedule} />
+                <SchedulerForm onStart={handleStartSchedule} isScheduling={mutation.isPending || isRunning} />
               </motion.div>
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
@@ -117,26 +125,34 @@ export function HomePage() {
             </div>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-16 md:py-24 lg:py-32">
-            <div className="text-center max-w-2xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold font-display">Responsible & Transparent Testing</h2>
-              <p className="mt-4 text-muted-foreground text-lg">
-                Our platform is designed with safety and ethics at its core. We do not facilitate harmful or deceptive practices.
-              </p>
+        <div className="bg-muted/30">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="py-16 md:py-24 lg:py-32">
+                <div className="text-center max-w-2xl mx-auto">
+                <h2 className="text-3xl md:text-4xl font-bold font-display">Responsible & Transparent Testing</h2>
+                <p className="mt-4 text-muted-foreground text-lg">
+                    Our platform is designed with safety and ethics at its core. We do not facilitate harmful or deceptive practices.
+                </p>
+                </div>
+                <motion.div
+                    className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8"
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.3 }}
+                    transition={{ staggerChildren: 0.2 }}
+                >
+                    <FeatureCard icon={<ShieldCheck />} title="Consent-Based">
+                        Every schedule requires explicit confirmation of ownership or permission, with an audit trail.
+                    </FeatureCard>
+                    <FeatureCard icon={<Zap />} title="Client-Side Only">
+                        Reloads are initiated by your browser. Our servers only store metadata, never making requests on your behalf.
+                    </FeatureCard>
+                    <FeatureCard icon={<BarChart2 />} title="Built for QA">
+                        Perfect for load testing, uptime monitoring, and automating repetitive checks in a controlled environment.
+                    </FeatureCard>
+                </motion.div>
             </div>
-            <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
-              <FeatureCard icon={<ShieldCheck />} title="Consent-Based">
-                Every schedule requires explicit confirmation of ownership or permission, with an audit trail.
-              </FeatureCard>
-              <FeatureCard icon={<Zap />} title="Client-Side Only">
-                Reloads are initiated by your browser. Our servers only store metadata, never making requests on your behalf.
-              </FeatureCard>
-              <FeatureCard icon={<BarChart2 />} title="Built for QA">
-                Perfect for load testing, uptime monitoring, and automating repetitive checks in a controlled environment.
-              </FeatureCard>
             </div>
-          </div>
         </div>
       </main>
       <footer className="bg-muted/50">

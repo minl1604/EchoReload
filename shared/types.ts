@@ -6,7 +6,7 @@ export interface DemoItem {
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
-  error?: string;
+  error?: string | object;
 }
 export type ScheduleStatus = 'running' | 'paused' | 'completed' | 'error';
 export interface ConsentProof {
@@ -31,3 +31,8 @@ export interface ScheduleLog {
   message?: string;
 }
 export type ReportBody = Omit<ScheduleLog, 'id'>;
+export interface Settings {
+  minInterval: number;
+  dailyCap: number;
+  maxConcurrency: number;
+}

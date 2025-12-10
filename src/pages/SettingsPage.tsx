@@ -1,10 +1,9 @@
-import React, { useEffect } from 'react';
-import { useForm, Resolver } from 'react-hook-form';
+import React from 'react';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Link } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { queryClient } from '@/lib/queryClient';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -15,29 +14,18 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { LanguageToggle } from '@/components/LanguageToggle';
 import { ArrowLeft, Save, ShieldCheck } from 'lucide-react';
 import { ApiResponse, Settings, ConsentProof } from '@shared/types';
-import { useTranslation } from '@/hooks/use-i18n';
 const settingsSchema = z.object({
-  minInterval: z.preprocess(
-    (val) => Number(val),
-    z.number().min(5, "Minimum interval must be at least 5 seconds.")
-  ),
-  dailyCap: z.preprocess(
-    (val) => Number(val),
-    z.number().min(1, "Daily cap must be at least 1.")
-  ),
-  maxConcurrency: z.preprocess(
-    (val) => Number(val),
-    z.number().min(1, "Max concurrency must be at least 1.")
-  ),
+  minInterval: z.coerce.number().min(5, "Minimum interval must be at least 5 seconds."),
+  dailyCap: z.coerce.number().min(1, "Daily cap must be at least 1."),
+  maxConcurrency: z.coerce.number().min(1, "Max concurrency must be at least 1."),
 });
 type SettingsFormData = z.infer<typeof settingsSchema>;
 async function fetchSettings(): Promise<Settings> {
   const res = await fetch('/api/settings');
   const data: ApiResponse<Settings> = await res.json();
-  if (!data.success || !data.data) throw new Error(data.error as string || 'Failed to fetch settings');
+  if (!data.success || !data.data) throw new Error(data.error || 'Failed to fetch settings');
   return data.data;
 }
 async function updateSettings(settings: SettingsFormData): Promise<ApiResponse<Settings>> {
@@ -55,7 +43,7 @@ async function fetchAuditLogs(): Promise<ConsentProof[]> {
     return data.data;
 }
 export function SettingsPage() {
-  const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const { data: settings, isLoading: isLoadingSettings } = useQuery({
     queryKey: ['settings'],
     queryFn: fetchSettings,
@@ -65,22 +53,17 @@ export function SettingsPage() {
     queryFn: fetchAuditLogs,
   });
   const form = useForm<SettingsFormData>({
-    resolver: zodResolver(settingsSchema) as unknown as Resolver<SettingsFormData>,
-    defaultValues: settings || { minInterval: 5, dailyCap: 1000, maxConcurrency: 5 },
+    resolver: zodResolver(settingsSchema),
+    values: settings,
   });
-  useEffect(() => {
-    if (settings) {
-      form.reset(settings);
-    }
-  }, [settings, form]);
   const mutation = useMutation({
     mutationFn: updateSettings,
     onSuccess: (response) => {
       if (response.success) {
-        toast.success(t('settingsUpdated'));
+        toast.success('Settings updated successfully!');
         queryClient.invalidateQueries({ queryKey: ['settings'] });
       } else {
-        toast.error(response.error as string || 'Failed to update settings.');
+        toast.error(response.error || 'Failed to update settings.');
       }
     },
     onError: (error: Error) => toast.error(`Error: ${error.message}`),
@@ -90,8 +73,7 @@ export function SettingsPage() {
   }
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <LanguageToggle />
-      <ThemeToggle />
+      <ThemeToggle className="fixed top-4 right-4 z-50" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="py-8 md:py-10 lg:py-12">
           <header className="space-y-4 mb-8">
@@ -102,8 +84,8 @@ export function SettingsPage() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-4xl md:text-5xl font-display font-bold">{t('settingsTitle')}</h1>
-              <p className="text-lg text-muted-foreground">{t('settingsDesc')}</p>
+              <h1 className="text-4xl md:text-5xl font-display font-bold">Settings</h1>
+              <p className="text-lg text-muted-foreground">Manage global safety controls and review audit logs.</p>
             </div>
           </header>
           <motion.div
@@ -114,8 +96,8 @@ export function SettingsPage() {
           >
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><ShieldCheck /> {t('safetyControls')}</CardTitle>
-                <CardDescription>{t('safetyDesc')}</CardDescription>
+                <CardTitle className="flex items-center gap-2"><ShieldCheck /> Global Safety Controls</CardTitle>
+                <CardDescription>These settings apply to all schedules to prevent misuse.</CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoadingSettings ? (
@@ -130,28 +112,28 @@ export function SettingsPage() {
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                       <FormField control={form.control} name="minInterval" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{t('minIntervalLabel')}</FormLabel>
+                          <FormLabel>Minimum Interval (seconds)</FormLabel>
                           <FormControl><Input type="number" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
                       <FormField control={form.control} name="dailyCap" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{t('dailyCapLabel')}</FormLabel>
+                          <FormLabel>Daily Reload Cap (per user)</FormLabel>
                           <FormControl><Input type="number" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
                       <FormField control={form.control} name="maxConcurrency" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{t('maxConcurrencyLabel')}</FormLabel>
+                          <FormLabel>Max Concurrent Schedules (per user)</FormLabel>
                           <FormControl><Input type="number" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
                       <Button type="submit" disabled={mutation.isPending}>
                         <Save className="size-4 mr-2" />
-                        {mutation.isPending ? t('saving') : t('saveSettings')}
+                        {mutation.isPending ? 'Saving...' : 'Save Settings'}
                       </Button>
                     </form>
                   </Form>
@@ -160,8 +142,8 @@ export function SettingsPage() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>{t('auditTitle')}</CardTitle>
-                <CardDescription>{t('auditDesc')}</CardDescription>
+                <CardTitle>Consent Audit Log</CardTitle>
+                <CardDescription>Record of all schedule creation consents.</CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoadingAudit ? (
@@ -171,8 +153,8 @@ export function SettingsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>{t('tableTimestamp')}</TableHead>
-                          <TableHead>{t('tableHash')}</TableHead>
+                          <TableHead>Timestamp</TableHead>
+                          <TableHead>User Agent Hash (SHA-1)</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
