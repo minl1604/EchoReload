@@ -22,7 +22,7 @@ const statusVariant: { [key in ScheduleStatus]: 'default' | 'secondary' | 'outli
 async function fetchSchedules(): Promise<Schedule[]> {
   const res = await fetch('/api/schedules');
   const data: ApiResponse<Schedule[]> = await res.json();
-  if (!data.success || !data.data) throw new Error(data.error || 'Failed to fetch schedules');
+  if (!data.success || !data.data) throw new Error(data.error as string || 'Failed to fetch schedules');
   return data.data;
 }
 async function fetchLogs(): Promise<ScheduleLog[]> {
@@ -228,7 +228,7 @@ export function MonitorPage() {
                 )}
               </CardContent>
             </Card>
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>

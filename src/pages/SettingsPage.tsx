@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -17,15 +17,24 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { ArrowLeft, Save, ShieldCheck } from 'lucide-react';
 import { ApiResponse, Settings, ConsentProof } from '@shared/types';
 const settingsSchema = z.object({
-  minInterval: z.coerce.number().min(5, "Minimum interval must be at least 5 seconds."),
-  dailyCap: z.coerce.number().min(1, "Daily cap must be at least 1."),
-  maxConcurrency: z.coerce.number().min(1, "Max concurrency must be at least 1."),
+  minInterval: z.preprocess(
+    (val) => Number(val),
+    z.number().min(5, "Minimum interval must be at least 5 seconds.")
+  ),
+  dailyCap: z.preprocess(
+    (val) => Number(val),
+    z.number().min(1, "Daily cap must be at least 1.")
+  ),
+  maxConcurrency: z.preprocess(
+    (val) => Number(val),
+    z.number().min(1, "Max concurrency must be at least 1.")
+  ),
 });
 type SettingsFormData = z.infer<typeof settingsSchema>;
 async function fetchSettings(): Promise<Settings> {
   const res = await fetch('/api/settings');
   const data: ApiResponse<Settings> = await res.json();
-  if (!data.success || !data.data) throw new Error(data.error || 'Failed to fetch settings');
+  if (!data.success || !data.data) throw new Error(data.error as string || 'Failed to fetch settings');
   return data.data;
 }
 async function updateSettings(settings: SettingsFormData): Promise<ApiResponse<Settings>> {
@@ -54,8 +63,13 @@ export function SettingsPage() {
   });
   const form = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
-    values: settings,
+    defaultValues: settings || { minInterval: 5, dailyCap: 1000, maxConcurrency: 5 },
   });
+  useEffect(() => {
+    if (settings) {
+      form.reset(settings);
+    }
+  }, [settings, form]);
   const mutation = useMutation({
     mutationFn: updateSettings,
     onSuccess: (response) => {
@@ -63,7 +77,7 @@ export function SettingsPage() {
         toast.success('Settings updated successfully!');
         queryClient.invalidateQueries({ queryKey: ['settings'] });
       } else {
-        toast.error(response.error || 'Failed to update settings.');
+        toast.error(response.error as string || 'Failed to update settings.');
       }
     },
     onError: (error: Error) => toast.error(`Error: ${error.message}`),
