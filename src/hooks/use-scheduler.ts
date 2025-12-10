@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Schedule, ReportBody } from '@shared/types';
 import { toast } from 'sonner';
 interface SchedulerControls {
-  start: (newSchedule: Schedule) => void;
+  start: (newSchedule: Schedule, opener?: Window | null) => void;
   pause: () => void;
   resume: () => void;
   stop: () => void;
@@ -87,7 +87,7 @@ export function useScheduler(): SchedulerControls {
       return prev - 1;
     });
   }, [performReload, activeSchedule?.intervalSeconds]);
-  const start = useCallback((newSchedule: Schedule) => {
+  const start = useCallback((newSchedule: Schedule, opener?: Window | null) => {
     stop();
     try {
         const url = new URL(newSchedule.targetUrl);
@@ -104,9 +104,17 @@ export function useScheduler(): SchedulerControls {
     toast("Scheduler started!", {
       description: "For best results, keep this tab active. Browsers may slow down timers in background tabs.",
     });
-    // Open a dedicated control window now (inside the user gesture) so subsequent reloads
-    // reuse this window and are less likely to be blocked by popup blockers.
-    reloadWindowRef.current = window.open('about:blank', '_blank');
+    // Prefer a provided opener window to avoid popup blockers; otherwise try to open a control window.
+    if (opener) {
+      reloadWindowRef.current = opener;
+    } else {
+      const opened = window.open('about:blank', '_blank');
+      if (opened) {
+        reloadWindowRef.current = opened;
+      } else {
+        toast.warning("Could not open control window. Popups may be blocked; reloads may be prevented.");
+      }
+    }
     const safeInterval = Math.max(5, newSchedule.intervalSeconds);
     setActiveSchedule({ ...newSchedule, intervalSeconds: safeInterval, status: 'running' });
     setCountdown(safeInterval);
