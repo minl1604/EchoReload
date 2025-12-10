@@ -34,7 +34,7 @@ export function ReloadCard({ schedule, countdown, runsCompleted, onPause, onResu
               {schedule.label}
             </CardDescription>
           </div>
-          <Badge variant={isPaused ? 'secondary' : 'default'} className={`capitalize ${schedule.status === 'running' ? 'animate-pulse' : ''}`}>
+          <Badge variant={isPaused ? 'secondary' : 'default'} className="capitalize animate-pulse">
             {schedule.status}
           </Badge>
         </div>
@@ -42,31 +42,19 @@ export function ReloadCard({ schedule, countdown, runsCompleted, onPause, onResu
       <CardContent className="space-y-6">
         <div className="text-center">
           <p className="text-sm text-muted-foreground">Next reload in</p>
-          <div className="text-6xl font-bold tabular-nums text-primary relative h-16 flex items-center justify-center">
-            {isPaused ? (
+          <div className="text-6xl font-bold tabular-nums text-primary relative h-16">
+            <AnimatePresence>
               <motion.div
-                key="paused"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="relative flex items-center justify-center"
+                key={countdown}
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -20, opacity: 0 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                className="absolute inset-0 flex items-center justify-center"
               >
-                <span>{countdown}s</span>
-                <PauseCircle className="absolute size-8 text-muted-foreground opacity-50" />
+                {isPaused ? '-' : countdown}s
               </motion.div>
-            ) : (
-              <AnimatePresence mode="popLayout">
-                <motion.div
-                  key={countdown}
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: -20, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: 'easeInOut' }}
-                  className="absolute inset-0 flex items-center justify-center"
-                >
-                  {countdown}s
-                </motion.div>
-              </AnimatePresence>
-            )}
+            </AnimatePresence>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4 text-center">

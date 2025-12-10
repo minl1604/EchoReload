@@ -1,148 +1,116 @@
-// Home page of the app, Currently a demo page for demonstration.
-// Please rewrite this file to implement your own logic. Do not delete it to use some other file as homepage. Simply replace the entire contents of this file.
-import { useEffect } from 'react'
-import { Sparkles } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { ThemeToggle } from '@/components/ThemeToggle'
-import { Toaster, toast } from '@/components/ui/sonner'
-import { create } from 'zustand'
-import { useShallow } from 'zustand/react/shallow'
-// import { AppLayout } from '@/components/layout/AppLayout'
-
-// Timer store: independent slice with a clear, minimal API, for demonstration
-type TimerState = {
-  isRunning: boolean;
-  elapsedMs: number;
-  start: () => void;
-  pause: () => void;
-  reset: () => void;
-  tick: (deltaMs: number) => void;
-}
-
-const useTimerStore = create<TimerState>((set) => ({
-  isRunning: false,
-  elapsedMs: 0,
-  start: () => set({ isRunning: true }),
-  pause: () => set({ isRunning: false }),
-  reset: () => set({ elapsedMs: 0, isRunning: false }),
-  tick: (deltaMs) => set((s) => ({ elapsedMs: s.elapsedMs + deltaMs })),
-}))
-
-// Counter store: separate slice to showcase multiple stores without coupling
-type CounterState = {
-  count: number;
-  inc: () => void;
-  reset: () => void;
-}
-
-const useCounterStore = create<CounterState>((set) => ({
-  count: 0,
-  inc: () => set((s) => ({ count: s.count + 1 })),
-  reset: () => set({ count: 0 }),
-}))
-
-function formatDuration(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000))
-  const m = Math.floor(total / 60)
-  const s = total % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { Toaster } from '@/components/ui/sonner';
+import { motion } from 'framer-motion';
+import { ShieldCheck, Zap, BarChart2 } from 'lucide-react';
+import { SchedulerForm } from '@/components/SchedulerForm';
+import { ReloadCard } from '@/components/ReloadCard';
+import { useScheduler } from '@/hooks/use-scheduler';
+import { Badge } from '@/components/ui/badge';
+const FeatureCard = ({ icon, title, children }: { icon: React.ReactNode, title: string, children: React.ReactNode }) => (
+  <div className="bg-card/50 p-6 rounded-lg border border-border/30 shadow-sm">
+    <div className="flex items-center gap-4">
+      <div className="bg-primary/10 text-primary p-3 rounded-full">{icon}</div>
+      <h3 className="text-lg font-semibold">{title}</h3>
+    </div>
+    <p className="mt-2 text-muted-foreground">{children}</p>
+  </div>
+);
 export function HomePage() {
-  // Select only what is needed to avoid unnecessary re-renders
-  const { isRunning, elapsedMs } = useTimerStore(
-    useShallow((s) => ({ isRunning: s.isRunning, elapsedMs: s.elapsedMs })),
-  )
-  const start = useTimerStore((s) => s.start)
-  const pause = useTimerStore((s) => s.pause)
-  const resetTimer = useTimerStore((s) => s.reset)
-  const count = useCounterStore((s) => s.count)
-  const inc = useCounterStore((s) => s.inc)
-  const resetCount = useCounterStore((s) => s.reset)
-
-  // Drive the timer only while running; avoid update-depth issues with a scoped RAF
-  useEffect(() => {
-    if (!isRunning) return
-    let raf = 0
-    let last = performance.now()
-    const loop = () => {
-      const now = performance.now()
-      const delta = now - last
-      last = now
-      // Read store API directly to keep effect deps minimal and stable
-      useTimerStore.getState().tick(delta)
-      raf = requestAnimationFrame(loop)
-    }
-    raf = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(raf)
-  }, [isRunning])
-
-  const onPleaseWait = () => {
-    inc()
-    if (!isRunning) {
-      start()
-      toast.success('Building your app…', {
-        description: 'Hang tight, we\'re setting everything up.',
-      })
-    } else {
-      pause()
-      toast.info('Taking a short pause', {
-        description: 'We\'ll continue shortly.',
-      })
-    }
-  }
-
-  const formatted = formatDuration(elapsedMs)
-
+  const { start, pause, resume, stop, activeSchedule, countdown, runsCompleted } = useScheduler();
   return (
-    // <AppLayout> Uncomment this if you want to use the sidebar
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-4 overflow-hidden relative">
-        <ThemeToggle />
-        <div className="absolute inset-0 bg-gradient-rainbow opacity-10 dark:opacity-20 pointer-events-none" />
-        <div className="text-center space-y-8 relative z-10 animate-fade-in">
-          <div className="flex justify-center">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-primary floating">
-              <Sparkles className="w-8 h-8 text-white rotating" />
+    <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden">
+      <ThemeToggle className="fixed top-4 right-4 z-50" />
+      <main className="flex-1">
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-b from-background to-transparent bg-opacity-50 z-0"></div>
+          <div className="absolute inset-0 opacity-20 dark:opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, hsl(var(--primary) / 0.1), transparent 50%), radial-gradient(circle at 80% 70%, hsl(242,100%,70%,0.1), transparent 50%)' }}></div>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div className="py-16 md:py-24 lg:py-32 text-center">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+              >
+                <Badge variant="outline" className="mb-4">
+                  For QA & Testing Purposes
+                </Badge>
+                <h1 className="text-5xl md:text-6xl lg:text-7xl font-display font-bold text-balance leading-tight">
+                  Ethical Reload
+                </h1>
+                <p className="mt-4 text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto text-pretty">
+                  A client-side tool for controlled, consent-based automated testing and performance monitoring.
+                  Built for developers and QA teams.
+                </p>
+                <div className="mt-8 flex justify-center gap-4">
+                  <Button asChild size="lg" className="btn-gradient">
+                    <Link to="/monitor">View Dashboard</Link>
+                  </Button>
+                  <Button asChild size="lg" variant="outline">
+                    <a href="#scheduler">Get Started</a>
+                  </Button>
+                </div>
+              </motion.div>
             </div>
-          </div>
-          <h1 className="text-5xl md:text-7xl font-display font-bold text-balance leading-tight">
-            Creating your <span className="text-gradient">app</span>
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto text-pretty">
-            Your application would be ready soon.
-          </p>
-          <div className="flex justify-center gap-4">
-            <Button 
-              size="lg"
-              onClick={onPleaseWait}
-              className="btn-gradient px-8 py-4 text-lg font-semibold hover:-translate-y-0.5 transition-all duration-200"
-              aria-live="polite"
-            >
-              Please Wait
-            </Button>
-          </div>
-          <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
-            <div>
-              Time elapsed: <span className="font-medium tabular-nums text-foreground">{formatted}</span>
-            </div>
-            <div>
-              Coins: <span className="font-medium tabular-nums text-foreground">{count}</span>
-            </div>
-          </div>
-          <div className="flex justify-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => { resetTimer(); resetCount(); toast('Reset complete') }}>
-              Reset
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => { inc(); toast('Coin added') }}>
-              Add Coin
-            </Button>
           </div>
         </div>
-        <footer className="absolute bottom-8 text-center text-muted-foreground/80">
-          <p>Powered by Cloudflare</p>
-        </footer>
-        <Toaster richColors closeButton />
-      </div>
-    // </AppLayout> Uncomment this if you want to use the sidebar
-  )
+        <div id="scheduler" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="py-8 md:py-10 lg:py-12">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <SchedulerForm onStart={start} isScheduling={!!activeSchedule} />
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+              >
+                <ReloadCard 
+                  schedule={activeSchedule}
+                  countdown={countdown}
+                  runsCompleted={runsCompleted}
+                  onPause={pause}
+                  onResume={resume}
+                  onStop={stop}
+                />
+              </motion.div>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="py-16 md:py-24 lg:py-32">
+            <div className="text-center max-w-2xl mx-auto">
+              <h2 className="text-3xl md:text-4xl font-bold font-display">Responsible & Transparent Testing</h2>
+              <p className="mt-4 text-muted-foreground text-lg">
+                Our platform is designed with safety and ethics at its core. We do not facilitate harmful or deceptive practices.
+              </p>
+            </div>
+            <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+              <FeatureCard icon={<ShieldCheck />} title="Consent-Based">
+                Every schedule requires explicit confirmation of ownership or permission, with an audit trail.
+              </FeatureCard>
+              <FeatureCard icon={<Zap />} title="Client-Side Only">
+                Reloads are initiated by your browser. Our servers only store metadata, never making requests on your behalf.
+              </FeatureCard>
+              <FeatureCard icon={<BarChart2 />} title="Built for QA">
+                Perfect for load testing, uptime monitoring, and automating repetitive checks in a controlled environment.
+              </FeatureCard>
+            </div>
+          </div>
+        </div>
+      </main>
+      <footer className="bg-muted/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-sm text-muted-foreground">
+          <p>Built with ❤️ at Cloudflare. This is a demo for QA and testing purposes only.</p>
+        </div>
+      </footer>
+      <Toaster richColors closeButton />
+    </div>
+  );
 }
